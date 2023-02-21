@@ -1,4 +1,5 @@
 ﻿using IdentityModel;
+using IdentityServer.Application.Models;
 using IdentityServer4.Models;
 using IdentityServer4.Services;
 using Microsoft.AspNetCore.Identity;
@@ -8,8 +9,8 @@ namespace IdentityServer.Services
 {
     public class ProfileService : IProfileService
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        public ProfileService(UserManager<IdentityUser> userManager)
+        private readonly UserManager<ApplicationUser> _userManager;
+        public ProfileService(UserManager<ApplicationUser> userManager)
         {
             _userManager = userManager;
         }

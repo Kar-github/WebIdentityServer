@@ -2,6 +2,7 @@
 using WebApiDemo.Common.Models;
 using IdentityServer.Services;
 using Microsoft.AspNetCore.Identity;
+using IdentityServer.Application.Models;
 
 namespace IdentityServer.DBIdentity
 {
@@ -12,46 +13,61 @@ namespace IdentityServer.DBIdentity
         {
             _db = db;
         }
-        public async Task CreateUser(User user)
+        public async Task CreateUser(ApplicationUser user)
         {
             _db.Add(user);
-             await _db.SaveChangesAsync();
+            await SaveChangesAsync();
         }
 
-        public IQueryable<User> GetAllUsers(string searchText)
+        public Task<IQueryable<ApplicationUser>> GetAllUsers()
         {
-            throw new NotImplementedException();
+            return Task.FromResult(_db.Users.AsNoTracking());
         }
 
-        public Task<int> GetTypeAsync(string userEmail)
-        {
-            throw new NotImplementedException();
-        }
 
-        public async Task<IdentityUser> GetUserById(Guid id)
+        public async Task<ApplicationUser> GetUserById(Guid id)
         {
             return await  _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id.ToString());
             
         }
 
-        public async  Task<IdentityUser> GetUserByUsername(string username)
+        public async  Task<ApplicationUser> GetUserByUsername(string username)
         {
             return await  Task.FromResult(_db.Users.FirstOrDefault(x => x.UserName == username));
         }
 
-        public Task SaveChangesAsync()
+        public async Task SaveChangesAsync()
         {
-            throw new NotImplementedException();
+            await _db.SaveChangesAsync();
         }
 
-        public Task<bool> Update(User user)
+        public Task<bool> Update(ApplicationUser user)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _db.Users.Update(user);
+                _db.SaveChanges();
+                return Task.FromResult(true);
+            }
+            catch { return Task.FromResult(false); }
+            
         }
 
-        public Task<bool> UpdateAsync(User user)
+        public async Task<bool> UpdateAsync(ApplicationUser user)
         {
-            throw new NotImplementedException();
+             
+            try
+            {
+                _db.Users.Update(user);
+                await SaveChangesAsync();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
+
+
     }
 }

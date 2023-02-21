@@ -3,7 +3,7 @@ using WebApiDemo.Services.Infrastructure.Repasitories;
 
 namespace WebApiDemo.Infrastructure.Repasitories
 {
-    public interface IProductRepasitory:IRepasitory<Product>
+    public interface IProductRepasitory:IRepository<Product>
     {
 
     }

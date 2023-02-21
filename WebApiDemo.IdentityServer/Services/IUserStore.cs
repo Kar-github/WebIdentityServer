@@ -1,19 +1,18 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using IdentityServer.Application.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore.Migrations;
 using WebApiDemo.Common.Models;
 
 namespace IdentityServer.Services
 {
     public interface IUserStore
     {
-        Task<int> GetTypeAsync(string userEmail);
-        Task<IdentityUser> GetUserById(Guid id);
-        Task<IdentityUser> GetUserByUsername(string username);
-        Task<bool> Update(User user);
-        Task<bool> UpdateAsync(User user);
-        Task CreateUser(User user);
+        Task<ApplicationUser> GetUserById(Guid id);
+        Task<ApplicationUser> GetUserByUsername(string username);
+        Task<bool> Update(ApplicationUser user);
+        Task<bool> UpdateAsync(ApplicationUser user);
+        Task CreateUser(ApplicationUser user);
 
-        IQueryable<User> GetAllUsers(string searchText);
-        Task SaveChangesAsync();
-
+        Task<IQueryable<ApplicationUser>> GetAllUsers();
     }
 }

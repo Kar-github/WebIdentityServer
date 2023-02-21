@@ -1,4 +1,5 @@
 ﻿using IdentityModel;
+using IdentityServer.Application.Models;
 using IdentityServer4.EntityFramework.DbContexts;
 using IdentityServer4.EntityFramework.Mappers;
 using IdentityServer4.EntityFramework.Storage;
@@ -14,7 +15,7 @@ namespace IdentityServer
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddDbContext<UserDbContext>(options=>options.UseSqlServer(connectionstring));
-            services.AddIdentity<IdentityUser, IdentityRole>()
+            services.AddIdentity<ApplicationUser, IdentityRole>()
                 .AddEntityFrameworkStores<UserDbContext>()
                 .AddDefaultTokenProviders();
             services.AddOperationalDbContext(options=>
@@ -45,11 +46,11 @@ namespace IdentityServer
 
         private static void EnsureUsers(IServiceScope scope)
         {
-            var usermanager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            var usermanager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var user1 = usermanager.FindByNameAsync("user1").Result;
             if(user1 is null)
             {
-                user1 = new IdentityUser
+                user1 = new ApplicationUser
                 {
                     UserName = "user1",
                     Email = "user111115225656512@mail.ru",

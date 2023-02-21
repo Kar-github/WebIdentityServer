@@ -1,4 +1,5 @@
-﻿using IdentityServer4;
+﻿using IdentityModel;
+using IdentityServer4;
 using IdentityServer4.Models;
 using IdentityServer4.Test;
 using System.Security.Claims;
@@ -12,11 +13,6 @@ namespace IdentityServer
             {
                 new IdentityResources.OpenId(),
                 new IdentityResources.Profile(),
-                new IdentityResource
-                {
-                    Name= "role",   
-                    UserClaims=new List<string>(){"role"}
-                }
 
             };
         public static IEnumerable<ApiScope> ApiScopes =>
@@ -28,7 +24,7 @@ namespace IdentityServer
                 new ApiResource("WebApiDemo","WebApiDemo Service")
                 {
                     Scopes= new List<string> { "apidemoscope"},
-                    UserClaims=new List<string>{"role"}
+                    UserClaims={JwtClaimTypes.Email }
                 }
             };
 
@@ -73,36 +69,16 @@ namespace IdentityServer
                 {
                     ClientId="interactive",
                     ClientSecrets={new Secret("ClientSecret1".Sha256())},
-                    AllowedGrantTypes=GrantTypes.ResourceOwnerPassword,
-                    RedirectUris={"https://localhost:5444/signin-oidc" },
-                    FrontChannelLogoutUri="https://localhost:5444/signout-oidc",
-                    PostLogoutRedirectUris={"https://localhost:5444/signout-callback-oidc"},
+                    AllowedGrantTypes= GrantTypes.ResourceOwnerPasswordAndClientCredentials,
+                    AlwaysIncludeUserClaimsInIdToken=true,
+                   
                     AllowedScopes=
                     {
                         IdentityServer4.IdentityServerConstants.StandardScopes.OpenId,
                         IdentityServer4.IdentityServerConstants.StandardScopes.Profile,
                         "apidemoscope"
                     }
-                },
-                new Client()
-                {
-                    ClientId="263475687100-jc58omhajnv9ui7fnen35p5160okj5nm.apps.googleusercontent.com",
-                    ClientName="Google",
-                    ClientSecrets={new Secret("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".Sha256()) },
-                    AllowedGrantTypes=GrantTypes.ClientCredentials,
-                    RequireConsent = false,
-                    RedirectUris = { "http://localhost:4200/product" },
-                    AllowedScopes=
-                    {
-                        IdentityServer4.IdentityServerConstants.StandardScopes.OpenId,
-                        IdentityServer4.IdentityServerConstants.StandardScopes.Profile,
-                        IdentityServer4.IdentityServerConstants.StandardScopes.Email,
-                        "apidemoscope"
-                    },
-                    UpdateAccessTokenClaimsOnRefresh = true,
-                    BackChannelLogoutUri = "https://accounts.google.com/Logout",
-
-                },
+                }
             };
     }
 }

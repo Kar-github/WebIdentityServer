@@ -11,10 +11,10 @@ using WebApiDemo.Services.Infrastructure.Repasitories;
 
 namespace WebApiDemo.Services.Infrastructure
 {
-    public class Repasitory<TEntity> : IRepasitory<TEntity> where TEntity:BaseModel
+    public class Repository<TEntity> : IRepository<TEntity> where TEntity:BaseModel
     {
         protected readonly DbContext _db;
-        public Repasitory(DbContext db) => _db = db;
+        public Repository(DbContext db) => _db = db;
         public Task Add(TEntity entity)
         {
             return Task.FromResult(_db.Set<TEntity>().Add(entity));

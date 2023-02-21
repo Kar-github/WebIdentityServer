@@ -17,7 +17,7 @@ using IdentityServer.Application;
 using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
-//SeedData.EnsureSeedData(builder.Configuration.GetConnectionString("DbIdentity"));
+//SeedData.EnsureSeedData(builder.Configuration.GetConnectionString("DefaultConnection"));
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -26,7 +26,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.ConfigureCors();
 builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
-builder.Services.AddDbContext<UserDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("DbIdentity")));
+builder.Services.AddDbContext<UserDbContext>(option => option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddIdentity();
 builder.Services.AddGoogleAuthentication(builder.Configuration);
@@ -34,15 +34,14 @@ builder.Services.ConfigIdentityServer(builder.Configuration);
 
 builder.Services.Configure<EmailOptions>(option => builder.Configuration.GetSection("EmailConfiguration").Bind(option));
 builder.Services.Configure<IdentityServerSettings>(option => builder.Configuration.GetSection("IdentityServerSettings").Bind(option));
-builder.Services.Configure<GoogleAuthenticationSettings>(option => builder.Configuration.GetSection("GoogleAuthenticationSettings").Bind(option));
 
 builder.Services.AddTransient<IProfileService, ProfileService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 var app = builder.Build();
-app.MigrateDatabase<ConfigurationDbContext>();
-app.MigrateDatabase<UserDbContext>();
-
+//app.MigrateDatabase<PersistedGrantDbContext>();
+//app.MigrateDatabase<ConfigurationDbContext>();
+//app.MigrateDatabase<UserDbContext>();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsProduction())

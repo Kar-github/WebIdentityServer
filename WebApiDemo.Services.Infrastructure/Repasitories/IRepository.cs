@@ -9,7 +9,7 @@ using WebApiDemo.Common.Models;
 
 namespace WebApiDemo.Services.Infrastructure.Repasitories
 {
-    public  interface IRepasitory<TEntity>
+    public  interface IRepository<TEntity>
     {
         Task<IEnumerable<TEntity>> GetAsync();
         Task<IEnumerable<TEntity>> GetNoTrackingAsync(Expression<Func<TEntity, bool>>? predicate = default);

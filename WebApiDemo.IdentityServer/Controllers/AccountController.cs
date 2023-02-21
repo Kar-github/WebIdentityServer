@@ -15,6 +15,10 @@ using Microsoft.Extensions.Options;
 using IdentityServer.Application;
 using IdentityServer4.Models;
 using Microsoft.AspNetCore.Authentication.Google;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using IdentityServer4.EntityFramework.Entities;
+using IdentityModel;
 
 namespace IdentityServer.Controllers
 {
@@ -26,23 +30,18 @@ namespace IdentityServer.Controllers
         private readonly IIdentityServerInteractionService _interaction;
         private readonly IClientStore _clientStore;
         private readonly IAuthenticationSchemeProvider _schemeprovider;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly IEventService _events;
         private readonly IEmailService _emailservice;
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IdentityServerSettings _optionsCommon;
-        private readonly GoogleAuthenticationSettings _optionsGoogle;
-        private static string _tokenEndpoint;
 
         public AccountController(IIdentityServerInteractionService interaction,
                                  IClientStore clientStore,
                                  IAuthenticationSchemeProvider schemeprovider,
                                  IEventService events,
                                  IOptions<IdentityServerSettings> optionscommon,
-                                 IOptions<GoogleAuthenticationSettings> optionsgoogle,
                                  IEmailService emailservice,
-                                 IHttpClientFactory httpClientFactory,
-                                 SignInManager<IdentityUser> signInManager)
+                                 SignInManager<ApplicationUser> signInManager)
         {
             _interaction = interaction;
             _clientStore= clientStore;
@@ -50,9 +49,7 @@ namespace IdentityServer.Controllers
             _events= events;
             _emailservice= emailservice;
             _signInManager= signInManager;
-            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _optionsCommon = optionscommon.Value ?? throw new ArgumentNullException(nameof(optionscommon));
-            _optionsGoogle = optionsgoogle.Value ?? throw new ArgumentNullException(nameof(optionsgoogle));
         }
         //[HttpPost]
         //[AllowAnonymous]
@@ -72,10 +69,13 @@ namespace IdentityServer.Controllers
         //    return Unauthorized("Incorrect Email address or password");
         //}
         [HttpPost("Login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginUserModel model, CancellationToken cancellationToken = default)
         {
             var client = new HttpClient();
-
+            var user = await _signInManager.UserManager.FindByEmailAsync(model.Email);
+            if(user is null)
+                return BadRequest("Incorrect Email address");
             var disco = await client.GetDiscoveryDocumentAsync(_optionsCommon.IdentityDiscoveryUrl);
             if (disco.IsError) throw new Exception(disco.Error);
             var response = await new HttpClient().RequestPasswordTokenAsync(new PasswordTokenRequest
@@ -86,7 +86,7 @@ namespace IdentityServer.Controllers
                 ClientSecret = _optionsCommon.IdentityClientPassword,
                 Scope = _optionsCommon.IdentityScope,
 
-                UserName =  model.Email,
+                UserName=user.UserName,
                 Password = model.Password
             });
             if (response.IsError)
@@ -108,42 +108,80 @@ namespace IdentityServer.Controllers
            
 
         }
-       
-        //[HttpGet("ExternalLogin")]
-        //[AllowAnonymous]
-        //public  IActionResult ExternalLogin()
-        //{
-        //    var redirectUrl = Url.Action(nameof(GoogleCallback), "Account");
-        //    var properties = new AuthenticationProperties { RedirectUri = redirectUrl };
-        //    return Challenge(properties, GoogleDefaults.AuthenticationScheme);
-
-        //    //var client = new HttpClient();
-
-        //    //var disco = await client.GetDiscoveryDocumentAsync(_optionsCommon.DiscoveryUrl);
-        //    //if (disco.IsError) throw new Exception(disco.Error);
-        //    //var responce = await client.RequestAuthorizationCodeTokenAsync(new AuthorizationCodeTokenRequest
-        //    //{
-        //    //    Address = "https://www.googleapis.com/oauth2/v4/token",
-        //    //    ClientId = _optionsGoogle.ClientId,
-        //    //    ClientSecret = _optionsGoogle.ClientSecret,
-        //    //    RedirectUri = "http://localhost:4200/signin-google"
-        //    //}); 
-
-        //    //if (responce.IsError)
-        //    //    return BadRequest();
-        //    //else
-        //    //    return Ok(new {responce.AccessToken,responce.RefreshToken,responce.ExpiresIn});
-        //}
-        [HttpGet("GoogleCallback")]
-        public async Task<IActionResult> GoogleCallback()
+        [HttpGet("LogOut")]
+        public async Task<IActionResult> LogOut()
         {
-            var result = await HttpContext.AuthenticateAsync(IdentityServer4.IdentityServerConstants.ExternalCookieAuthenticationScheme);
-            if (result?.Succeeded != true)
+            try
             {
-                throw new Exception("External authentication error");
+                await HttpContext.SignOutAsync();
+                return Ok();
             }
+            catch(Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        
+        }
 
-              return Ok();
+        [HttpGet("ExternalLogin")]
+        [AllowAnonymous]
+        public IActionResult ExternalLogin(string provider, string returnUrl)
+        {
+            var redirectUrl = Url.Action(nameof(ExternalLoginCallback), "Account",new {ReturnUrl=returnUrl});
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+            var result= new ChallengeResult(provider, properties);
+            return result;
+        }
+
+        [HttpGet("ExternalLoginCallback")]
+        public async Task<IActionResult> ExternalLoginCallback(string returnUrl=null)
+        {
+            returnUrl = returnUrl ?? Url.Content("~/");
+            ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+                return BadRequest();
+            var user = await _signInManager.UserManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+            if (user == null)
+            {
+                user = new ApplicationUser()
+                {
+                    Email = info.Principal.FindFirst(ClaimTypes.Email).Value,
+                    UserName = info.Principal.FindFirst(ClaimTypes.Email).Value,
+                    EmailConfirmed = true,
+                };
+
+                var identResult = await _signInManager.UserManager.CreateAsync(user,user.Id.Sha256());
+                //await _signInManager.UserManager.AddClaimAsync(user, new System.Security.Claims.Claim(JwtClaimTypes.Email, user.Email));
+                if (identResult.Succeeded)
+                {
+                    identResult = await _signInManager.UserManager.AddLoginAsync(user, info);
+                    if (identResult.Succeeded)
+                    {
+                        await _signInManager.SignInAsync(user, false);
+                    }
+                }
+            }
+            //var result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, false);
+            var tokenEndPoint = _optionsCommon.IdentityDiscoveryUrl + "/connect/token";
+            var response = await new HttpClient().RequestPasswordTokenAsync(new PasswordTokenRequest()
+            {
+                Address= tokenEndPoint,
+                ClientId=_optionsCommon.IdentityClientId,
+                ClientSecret=_optionsCommon.IdentityClientPassword,
+                Scope=_optionsCommon.IdentityScope,
+                UserName=user.Email,
+                Password=user.Id.ToSha256()
+
+            });
+            if (response.IsError)
+                return BadRequest("Incorrect client credentials");
+            var data = JsonConvert.DeserializeObject<dynamic>(response.Json.ToString());
+            var access_token = (string)data.access_token;
+            var refresh_token = (string)data.refresh_token;
+            var expires_in = (string)data.expires_in;
+            var returnUri = returnUrl + $"?access_token={access_token}&refresh_token={refresh_token}&expires_in={expires_in}";
+         
+            return Redirect(returnUri);
         }
         [HttpPost]
         [Route("Register")]
@@ -152,17 +190,17 @@ namespace IdentityServer.Controllers
             var userbyemail = await _signInManager.UserManager.FindByEmailAsync(model.Email);
             if (userbyemail is not null)
                 return BadRequest("User with this email address already exists");
-            var user1 = await _signInManager.UserManager.FindByNameAsync(model.UserName);
-            if (user1 is null)
+            var user = await _signInManager.UserManager.FindByNameAsync(model.UserName);
+            if (user is null)
             {
-                user1 = new IdentityUser
+                user = new ApplicationUser
                 {
                     UserName = model.UserName,
                     Email = model.Email,
                     PhoneNumber=model.PhoneNumber,
                     EmailConfirmed = true,
                 };
-                var result = await  _signInManager.UserManager.CreateAsync(user1, model.Password);
+                var result = await  _signInManager.UserManager.CreateAsync(user, model.Password);
                 if (!result.Succeeded)
                 {
                     throw new Exception(result.Errors.First().Description);
@@ -192,7 +230,7 @@ namespace IdentityServer.Controllers
                        });
             if (send)
             {
-                return Ok("Email sent");
+                return Ok();
             }
             else
                 return BadRequest("Email not sent");
@@ -209,7 +247,7 @@ namespace IdentityServer.Controllers
                 return BadRequest("User does not exist");
             var result = await  _signInManager.UserManager.ResetPasswordAsync(user,model.Token,model.NewPassword);
             if (result.Succeeded)
-                return Ok("Password changed successfully");
+                return Ok();
             else return BadRequest();
         }
         [HttpGet]

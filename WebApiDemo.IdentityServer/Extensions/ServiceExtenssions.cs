@@ -12,6 +12,7 @@ using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Azure.KeyVault;
 using IdentityServer4;
 using static Org.BouncyCastle.Math.EC.ECCurve;
+using IdentityServer.Application.Models;
 
 namespace IdentityServer.Extensions
 {
@@ -30,16 +31,16 @@ namespace IdentityServer.Extensions
         }
         private static void ConfigIdentityServer(this IIdentityServerBuilder server, IConfiguration config)
         {
-            server.AddAspNetIdentity<IdentityUser>();
+            server.AddAspNetIdentity<ApplicationUser>();
             server.AddConfigurationStore(options =>
             {
                 options.ConfigureDbContext = b =>
-                b.UseSqlServer(config.GetConnectionString("DbIdentity"), opt => opt.MigrationsAssembly(typeof(Program).Assembly.GetName().Name));
+                b.UseSqlServer(config.GetConnectionString("DefaultConnection"), opt => opt.MigrationsAssembly(typeof(Program).Assembly.GetName().Name));
             });
             server.AddOperationalStore(options =>
             {
                 options.ConfigureDbContext = b =>
-                b.UseSqlServer(config.GetConnectionString("DbIdentity"), opt => opt.MigrationsAssembly(typeof(Program).Assembly.GetName().Name));
+                b.UseSqlServer(config.GetConnectionString("DefaultConnection"), opt => opt.MigrationsAssembly(typeof(Program).Assembly.GetName().Name));
             });
             try
             {
@@ -71,7 +72,7 @@ namespace IdentityServer.Extensions
         }
         public static void AddIdentity(this IServiceCollection services)
         {
-            services.AddIdentity<IdentityUser, IdentityRole>(config =>
+            services.AddIdentity<ApplicationUser, IdentityRole>(config =>
             {
                 config.Password.RequireDigit = false;
                 config.Password.RequireLowercase = false;
@@ -90,10 +91,11 @@ namespace IdentityServer.Extensions
             services.AddAuthentication().
                 AddGoogle((options)=>
                 {
-                    options.SignInScheme = IdentityServerConstants.ExternalCookieAuthenticationScheme;
+                    options.SignInScheme = IdentityConstants.ExternalScheme;
                     options.ClientId = config.GetSection("GoogleAuthenticationSettings")["GoogleClientId"];
                     options.ClientSecret = config.GetSection("GoogleAuthenticationSettings")["GoogleClientSecret"];
-                    options.CallbackPath = "/signin-google";
+                    options.AuthorizationEndpoint += "?prompt=select_account";
+                    //options.CallbackPath = "/signin-google";
                 });
         }
         public static void AddJwt(this IServiceCollection services,IConfiguration config)
